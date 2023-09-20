@@ -3,7 +3,7 @@ package controllers
 import (
 	"net/http"
 
-	"github.com/joncalhoun/lenslocked/views"
+	"github.com/taherk/galleryapp/views"
 )
 
 func StaticHandler(tpl views.Template) http.HandlerFunc {
