@@ -1,3 +1,4 @@
+{{template "header" .}}
 <h1>FAQ Page</h1>
 <ul>
   {{ range . }}
@@ -9,3 +10,4 @@
   <li>
     <b>{{ .Question }}</b> {{ .Answer }} </li>
 {{ end }}
+{{template "footer" .}}
