@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/taherk/galleryapp/controllers"
+	"github.com/taherk/galleryapp/migrations"
 	"github.com/taherk/galleryapp/models"
 	"github.com/taherk/galleryapp/templates"
 	"github.com/taherk/galleryapp/views"
@@ -23,6 +24,11 @@ func main() {
 		panic(err)
 	}
 	defer db.Close()
+
+	err = models.MigrateFS(db, migrations.FS, ".")
+	if err != nil {
+		panic(err)
+	}
 
 	userService := models.UserService{
 		DB: db,
@@ -47,5 +53,4 @@ func main() {
 
 	fmt.Println("Starting the server on :3000...")
 	http.ListenAndServe(":3000", r)
-
 }
