@@ -1,8 +1,8 @@
 {{template "header" .}}
 <div class="py-12 flex justify-center">
   <div class="px-8 py-8 bg-white rounded shadow">
-    <h1 class="pt-4 py-8 text-center text-3xl font-bold text-gray-900">Start sharing you photos today!</h1>
-    <form class="" action="/users" method="post">
+    <h1 class="pt-4 py-8 text-center text-3xl font-bold text-gray-900">Welcome Back</h1>
+    <form class="" action="/signin" method="post">
       <div class="py-2">
         <label for="email" class="text-sm font-semibold text-gray-800">Email Address</label>
         <input name="email" id="email" type="email" placeholder="Email Address" required autocomplete="email"
@@ -18,10 +18,10 @@
       <div class="py-4">
         <button type="submit"
           class="w-full py-4 px-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold text-lg">Sign
-          Up</button>
+          In</button>
       </div>
       <div class="py-2 w-full flex justify-between">
-        <p class="text-xs text-gray-500">Already have an account <a class="underline" href="/signin">Sign in</a></p>
+        <p class="text-xs text-gray-500">Need an account?<a class="underline" href="/signup">Sign Up</a></p>
         <p class="text-xs text-gray-500"><a class="underline" href="/reset-pw">Forgot your password</a></p>
       </div>
     </form>
