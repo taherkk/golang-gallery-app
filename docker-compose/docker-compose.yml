@@ -1,0 +1,11 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:16.1-bullseye
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: gallery_app
+    ports:
+      - 5432:5432
