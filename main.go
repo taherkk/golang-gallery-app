@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/gorilla/csrf"
 	"github.com/taherk/galleryapp/controllers"
 	"github.com/taherk/galleryapp/migrations"
 	"github.com/taherk/galleryapp/models"
@@ -14,6 +15,18 @@ import (
 
 func main() {
 	r := chi.NewRouter()
+
+	csrfMiddleware := func(next http.Handler) http.Handler {
+		csrfKey := "hciCfay4reF2GIyx7Fi3CUoakVSRgap9"
+		csrfMw := csrf.Protect([]byte(csrfKey), csrf.Secure(false))
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r)
+		})
+
+		return csrfMw(handler)
+	}
+
+	r.Use(csrfMiddleware)
 	r.Get("/", controllers.StaticHandler(views.Must(views.ParseFS(templates.FS, "home.gohtml", "tailwind.gohtml"))))
 	r.Get("/contact", controllers.StaticHandler(views.Must(views.ParseFS(templates.FS, "contact.gohtml", "tailwind.gohtml"))))
 	r.Get("/faq", controllers.FAQ(views.Must(views.ParseFS(templates.FS, "faq.gohtml", "tailwind.gohtml"))))
@@ -52,5 +65,6 @@ func main() {
 	})
 
 	fmt.Println("Starting the server on :3000...")
+
 	http.ListenAndServe(":3000", r)
 }
