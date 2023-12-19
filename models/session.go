@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
-	"errors"
 	"fmt"
 
 	"github.com/taherk/galleryapp/rand"
@@ -52,22 +51,15 @@ func (ss *SessionService) Create(userID uint) (*Session, error) {
 	}
 
 	row := ss.DB.QueryRow(`
-		UPDATE sessions
-		SET token_hash=$2
-		WHERE user_id=$1
-		RETURNING id;
-	`, userID, tokenHash,
-	)
-	err = row.Scan(&session.ID)
-	if errors.Is(err, sql.ErrNoRows) {
-		row = ss.DB.QueryRow(`
 		INSERT INTO sessions (user_id, token_hash)
-		VALUES ($1, $2)
-		RETURNING id;
-	`, userID, tokenHash)
+		VALUES ($1, $2) ON CONFLICT (user_id) DO
+		UPDATE
+		SET token_hash = $2
+		RETURNING id;`,
+		userID, tokenHash,
+	)
 
-		err = row.Scan(&session.ID)
-	}
+	err = row.Scan(&session.ID)
 
 	if err != nil {
 		return nil, fmt.Errorf("models.session.create: %w", err)
@@ -77,33 +69,23 @@ func (ss *SessionService) Create(userID uint) (*Session, error) {
 }
 
 func (ss *SessionService) User(token string) (*User, error) {
-	// TODO: Implement SessionService.User
 
 	// hash the session token
 	tokenHash := ss.hash(token)
 
 	// query that session with the hash
 	row := ss.DB.QueryRow(`
-		SELECT user_id
+		SELECT users.id, users.email, users.password_hash
 		FROM sessions
-		WHERE token_hash=$1;
-	`, tokenHash)
+		JOIN users ON users.id = sessions.user_id
+		WHERE sessions.token_hash=$1;`,
+		tokenHash,
+	)
 
 	var user User
-	err := row.Scan(&user.ID)
+	err := row.Scan(&user.ID, &user.Email, &user.PasswordHash)
 	if err != nil {
 		return nil, fmt.Errorf("models.session.user: %w", err)
-	}
-
-	// using userID get the user
-	row = ss.DB.QueryRow(`
-		SELECT email, password_hash
-		FROM users
-		WHERE id=$1
-	`, user.ID)
-	err = row.Scan(&user.Email, &user.PasswordHash)
-	if err != nil {
-		return nil, fmt.Errorf("model.session.user: %w", err)
 	}
 
 	return &user, nil
