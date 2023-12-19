@@ -14,23 +14,8 @@ import (
 )
 
 func main() {
-	r := chi.NewRouter()
 
-	csrfMiddleware := func(next http.Handler) http.Handler {
-		csrfKey := "hciCfay4reF2GIyx7Fi3CUoakVSRgap9"
-		csrfMw := csrf.Protect([]byte(csrfKey), csrf.Secure(false))
-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			next.ServeHTTP(w, r)
-		})
-
-		return csrfMw(handler)
-	}
-
-	r.Use(csrfMiddleware)
-	r.Get("/", controllers.StaticHandler(views.Must(views.ParseFS(templates.FS, "home.gohtml", "tailwind.gohtml"))))
-	r.Get("/contact", controllers.StaticHandler(views.Must(views.ParseFS(templates.FS, "contact.gohtml", "tailwind.gohtml"))))
-	r.Get("/faq", controllers.FAQ(views.Must(views.ParseFS(templates.FS, "faq.gohtml", "tailwind.gohtml"))))
-
+	// Setup DB
 	cfg := models.DefaultPostgresConfig()
 	db, err := models.Open(cfg)
 	if err != nil {
@@ -43,12 +28,28 @@ func main() {
 		panic(err)
 	}
 
+	// Setup Services
 	userService := models.UserService{
 		DB: db,
 	}
 	sessionService := models.SessionService{
 		DB: db,
 	}
+
+	csrfMiddleware := func(next http.Handler) http.Handler {
+		csrfKey := "hciCfay4reF2GIyx7Fi3CUoakVSRgap9"
+		csrfMw := csrf.Protect([]byte(csrfKey), csrf.Secure(false))
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r)
+		})
+
+		return csrfMw(handler)
+	}
+
+	umw := controllers.UserMiddleware{
+		SessionService: &sessionService,
+	}
+
 	usersC := controllers.Users{
 		UserService:    &userService,
 		SessionService: &sessionService,
@@ -56,9 +57,20 @@ func main() {
 	usersC.Templates.New = views.Must(views.ParseFS(templates.FS, "sign-up.gohtml", "tailwind.gohtml"))
 	usersC.Templates.SignIn = views.Must(views.ParseFS(templates.FS, "sign-in.gohtml", "tailwind.gohtml"))
 
+	r := chi.NewRouter()
+	r.Use(csrfMiddleware)
+	r.Use(umw.SetUser)
+	r.Get("/", controllers.StaticHandler(views.Must(views.ParseFS(templates.FS, "home.gohtml", "tailwind.gohtml"))))
+	r.Get("/contact", controllers.StaticHandler(views.Must(views.ParseFS(templates.FS, "contact.gohtml", "tailwind.gohtml"))))
+	r.Get("/faq", controllers.FAQ(views.Must(views.ParseFS(templates.FS, "faq.gohtml", "tailwind.gohtml"))))
+
 	// views
 	r.Get("/signup", usersC.New)
 	r.Get("/signin", usersC.SignIn)
+	r.Route("/user/me", func(r chi.Router) {
+		r.Use(umw.RequireUser)
+		r.Get("/", usersC.CurrentUser)
+	})
 	r.Get("/users/me", usersC.CurrentUser)
 
 	// processing
