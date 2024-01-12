@@ -22,7 +22,10 @@ type Session struct {
 }
 
 type SessionService struct {
-	DB            *sql.DB
+	DB *sql.DB
+	// how many bytes to use when generating each password reset token. If this vale is
+	// not set or is less than the MinBytesPerToken const it will be ignored and
+	// MinBytesPerToken will be used.
 	BytesPerToken int
 }
 

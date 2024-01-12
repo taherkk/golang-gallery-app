@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/taherk/galleryapp/context"
 	"github.com/taherk/galleryapp/models"
@@ -12,11 +13,15 @@ import (
 
 type Users struct {
 	Templates struct {
-		New    Template
-		SignIn Template
+		New            Template
+		SignIn         Template
+		ForgotPassword Template
+		CheckYourEmail Template
 	}
-	UserService    *models.UserService
-	SessionService *models.SessionService
+	UserService          *models.UserService
+	SessionService       *models.SessionService
+	PasswordResetService *models.PasswordResetService
+	EmailService         *models.EmailService
 }
 
 func (u Users) New(w http.ResponseWriter, r *http.Request) {
@@ -76,7 +81,7 @@ func (u Users) ProcessSignIn(w http.ResponseWriter, r *http.Request) {
 	user, err := u.UserService.Authenticate(data.Email, data.Password)
 	if err != nil {
 		fmt.Println(err)
-		http.Error(w, "Something went wront.", http.StatusInternalServerError)
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 
@@ -93,12 +98,12 @@ func (u Users) ProcessSignIn(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/users/me", http.StatusFound)
 }
 
-func (u *Users) CurrentUser(w http.ResponseWriter, r *http.Request) {
+func (u Users) CurrentUser(w http.ResponseWriter, r *http.Request) {
 	user := context.User(r.Context())
 	fmt.Fprintf(w, "Current user: %v", user.Email)
 }
 
-func (u *Users) ProcessSignout(w http.ResponseWriter, r *http.Request) {
+func (u Users) ProcessSignout(w http.ResponseWriter, r *http.Request) {
 	token, err := readCookie(r, CookieSession)
 	if err != nil {
 		fmt.Println(err)
@@ -120,6 +125,46 @@ func (u *Users) ProcessSignout(w http.ResponseWriter, r *http.Request) {
 	deleteCookie(w, CookieSession)
 
 	http.Redirect(w, r, "/signin", http.StatusFound)
+}
+
+func (u Users) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var data struct {
+		Email string
+	}
+	data.Email = r.FormValue("email")
+	u.Templates.ForgotPassword.Execute(w, r, data)
+}
+
+func (u Users) ProcessForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var data struct {
+		Email string
+	}
+	data.Email = r.FormValue("email")
+
+	pwResetToken, err := u.PasswordResetService.Create(data.Email)
+	// TODO: handle other cases in the future. For instance, if a user does not exist
+	// with that email
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
+		return
+	}
+
+	vals := url.Values{
+		"token": {pwResetToken.Token},
+	}
+	resetURL := "https://www.gallery-app.com/reset-pw?" + vals.Encode()
+
+	err = u.EmailService.ForgotPassword(data.Email, resetURL)
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
+		return
+	}
+
+	// don't render your token here. We need the user to confirm they have access to the
+	// email account to verify their identity.
+	u.Templates.CheckYourEmail.Execute(w, r, data)
 }
 
 type UserMiddleware struct {
