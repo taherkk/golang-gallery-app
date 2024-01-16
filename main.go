@@ -121,7 +121,8 @@ func main() {
 	}
 	usersC.Templates.New = views.Must(views.ParseFS(templates.FS, "sign-up.gohtml", "tailwind.gohtml"))
 	usersC.Templates.SignIn = views.Must(views.ParseFS(templates.FS, "sign-in.gohtml", "tailwind.gohtml"))
-	usersC.Templates.ForgotPassword = views.Must(views.ParseFS(templates.FS, "forgot-pw.html", "tailwind.gohtml"))
+	usersC.Templates.ForgotPassword = views.Must(views.ParseFS(templates.FS, "forgot-pw.gohtml", "tailwind.gohtml"))
+	usersC.Templates.ResetPassword = views.Must(views.ParseFS(templates.FS, "reset-pw.gohtml", "tailwind.gohtml"))
 
 	r := chi.NewRouter()
 	r.Use(csrfMiddleware)
@@ -134,17 +135,18 @@ func main() {
 	r.Get("/signup", usersC.New)
 	r.Get("/signin", usersC.SignIn)
 	r.Get("/forgot-pw", usersC.ForgotPassword)
+	r.Get("/reset-pw", usersC.ResetPassword)
 	r.Route("/user/me", func(r chi.Router) {
 		r.Use(umw.RequireUser)
 		r.Get("/", usersC.CurrentUser)
 	})
-	r.Get("/users/me", usersC.CurrentUser)
 
 	// processing
 	r.Post("/users", usersC.Create)
 	r.Post("/signin", usersC.ProcessSignIn)
 	r.Post("/signout", usersC.ProcessSignout)
 	r.Post("/forgot-pw", usersC.ProcessForgotPassword)
+	r.Post("/reset-pw", usersC.ProcessResetPassword)
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Page not found", http.StatusNotFound)

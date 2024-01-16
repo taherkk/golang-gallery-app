@@ -2,12 +2,12 @@ package controllers
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 
 	"github.com/taherk/galleryapp/context"
+	"github.com/taherk/galleryapp/errors"
 	"github.com/taherk/galleryapp/models"
 )
 
@@ -17,6 +17,7 @@ type Users struct {
 		SignIn         Template
 		ForgotPassword Template
 		CheckYourEmail Template
+		ResetPassword  Template
 	}
 	UserService          *models.UserService
 	SessionService       *models.SessionService
@@ -34,14 +35,20 @@ func (u Users) New(w http.ResponseWriter, r *http.Request) {
 }
 
 func (u Users) Create(w http.ResponseWriter, r *http.Request) {
-	email := r.FormValue("email")
-	password := r.FormValue("password")
+	var data struct {
+		Email    string
+		Password string
+	}
+	data.Email = r.FormValue("email")
+	data.Password = r.FormValue("password")
 
-	user, err := u.UserService.Create(email, password)
+	user, err := u.UserService.Create(data.Email, data.Password)
 	if err != nil {
 		// log the information
-		fmt.Println(err)
-		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
+		if errors.Is(err, models.ErremailTaken) {
+			err = errors.Public(err, "That email address is already associated with an account")
+		}
+		u.Templates.New.Execute(w, r, data, err)
 		return
 	}
 
@@ -165,6 +172,49 @@ func (u Users) ProcessForgotPassword(w http.ResponseWriter, r *http.Request) {
 	// don't render your token here. We need the user to confirm they have access to the
 	// email account to verify their identity.
 	u.Templates.CheckYourEmail.Execute(w, r, data)
+}
+
+func (u Users) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var data struct {
+		Token string
+	}
+	data.Token = r.FormValue("token")
+	u.Templates.ResetPassword.Execute(w, r, data)
+}
+
+func (u Users) ProcessResetPassword(w http.ResponseWriter, r *http.Request) {
+	var data struct {
+		Token     string
+		Passsword string
+	}
+	data.Token = r.FormValue("token")
+	data.Passsword = r.FormValue("password")
+
+	user, err := u.PasswordResetService.Consume(data.Token)
+	if err != nil {
+		fmt.Println(err)
+		// TODO: Distinguish between types of errors
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	// TODO: Update the user's password
+	err = u.UserService.UpdatePassword(int(user.ID), data.Passsword)
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+	}
+
+	// Sign the user in
+	// any errors from this point onwards should  redirect the user to the sign in page
+	session, err := u.SessionService.Create(user.ID)
+	if err != nil {
+		fmt.Println(err)
+		http.Redirect(w, r, "/signin", http.StatusFound)
+		return
+	}
+	setCookie(w, CookieSession, session.Token)
+	http.Redirect(w, r, "/users/me", http.StatusFound)
 }
 
 type UserMiddleware struct {
