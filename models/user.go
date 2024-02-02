@@ -11,9 +11,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var (
-	ErremailTaken = errors.New("models: email address is already in use")
-)
+var ()
 
 type User struct {
 	ID           uint
@@ -54,7 +52,7 @@ func (us *UserService) Create(email string, password string) (*User, error) {
 		var pgError *pgconn.PgError
 		if errors.As(err, &pgError) {
 			if pgError.Code == pgerrcode.UniqueViolation {
-				return nil, ErremailTaken
+				return nil, ErrEmailToken
 			}
 		}
 		return nil, fmt.Errorf("models.user.create: %w", err)

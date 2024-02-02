@@ -34,20 +34,20 @@ type PasswordResetService struct {
 	Duration time.Duration
 }
 
-func (ps *PasswordResetService) Create(email string) (*PasswordReset, error) {
+func (service *PasswordResetService) Create(email string) (*PasswordReset, error) {
 
 	// verify we have a valid email and get user's id
 	email = strings.ToLower(email)
 
 	var userID int
-	row := ps.DB.QueryRow(`SELECT id from users WHERE email = $1;`, email)
+	row := service.DB.QueryRow(`SELECT id from users WHERE email = $1;`, email)
 	err := row.Scan(&userID)
 	if err != nil {
 		return nil, fmt.Errorf("models.passwordResetService.Create: %w", err)
 	}
 
 	// Build the password reset
-	bytesPerToken := ps.BytesPerToken
+	bytesPerToken := service.BytesPerToken
 	if bytesPerToken < MinSessionTokenBytes {
 		bytesPerToken = MinSessionTokenBytes
 	}
@@ -57,7 +57,7 @@ func (ps *PasswordResetService) Create(email string) (*PasswordReset, error) {
 		return nil, fmt.Errorf("models.passwordResetService.Create: %w", err)
 	}
 
-	duration := ps.Duration
+	duration := service.Duration
 	if duration == 0 {
 		duration = DefaultResetDuration
 	}
@@ -65,12 +65,12 @@ func (ps *PasswordResetService) Create(email string) (*PasswordReset, error) {
 	pwReset := PasswordReset{
 		UserID:    userID,
 		Token:     token,
-		TokenHash: ps.hash(token),
+		TokenHash: service.hash(token),
 		ExpiresAt: time.Now().Add(duration),
 	}
 
 	// insert the password reset into the db
-	row = ps.DB.QueryRow(`
+	row = service.DB.QueryRow(`
 		INSERT INTO password_resets (user_id, token_hash, expires_at)
 		VALUES ($1, $2, $3) ON CONFLICT (user_id) DO
 		UPDATE
@@ -88,12 +88,12 @@ func (ps *PasswordResetService) Create(email string) (*PasswordReset, error) {
 	return &pwReset, nil
 }
 
-func (ps *PasswordResetService) Consume(token string) (*User, error) {
-	tokenHash := ps.hash(token)
+func (service *PasswordResetService) Consume(token string) (*User, error) {
+	tokenHash := service.hash(token)
 	var user User
 	var pwReset PasswordReset
 
-	row := ps.DB.QueryRow(`
+	row := service.DB.QueryRow(`
 		SELECT password_resets.id,
 			password_resets.expires_at,
 			users.id,
@@ -112,7 +112,7 @@ func (ps *PasswordResetService) Consume(token string) (*User, error) {
 		return nil, fmt.Errorf("token expired: %v", token)
 	}
 
-	err = ps.delete(pwReset.ID)
+	err = service.delete(pwReset.ID)
 	if err != nil {
 		return nil, fmt.Errorf("models.PasswordResetService.Consume: %w", err)
 	}
@@ -120,13 +120,13 @@ func (ps *PasswordResetService) Consume(token string) (*User, error) {
 	return &user, nil
 }
 
-func (ps *PasswordResetService) hash(token string) string {
+func (service *PasswordResetService) hash(token string) string {
 	tokenHash := sha256.Sum256([]byte(token))
 	return base64.URLEncoding.EncodeToString(tokenHash[:])
 }
 
-func (ps *PasswordResetService) delete(id int) error {
-	_, err := ps.DB.Exec(`
+func (service *PasswordResetService) delete(id int) error {
+	_, err := service.DB.Exec(`
 	DELETE FROM password_resets
 	WHERE id = $1;
 	`, id)

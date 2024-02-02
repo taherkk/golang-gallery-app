@@ -95,13 +95,16 @@ func main() {
 	pwResetService := &models.PasswordResetService{
 		DB: db,
 	}
+	galleryService := &models.GalleryService{
+		DB: db,
+	}
 	emailService, err := models.NewEmailService(config.SMTP)
 	if err != nil {
 		log.Fatalf("cannot create mail service: %v", err)
 	}
 
 	csrfMiddleware := func(next http.Handler) http.Handler {
-		csrfMw := csrf.Protect([]byte(config.CSRF.Key), csrf.Secure(config.CSRF.Secure))
+		csrfMw := csrf.Protect([]byte(config.CSRF.Key), csrf.Secure(config.CSRF.Secure), csrf.Path("/"))
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			next.ServeHTTP(w, r)
 		})
@@ -123,6 +126,12 @@ func main() {
 	usersC.Templates.SignIn = views.Must(views.ParseFS(templates.FS, "sign-in.gohtml", "tailwind.gohtml"))
 	usersC.Templates.ForgotPassword = views.Must(views.ParseFS(templates.FS, "forgot-pw.gohtml", "tailwind.gohtml"))
 	usersC.Templates.ResetPassword = views.Must(views.ParseFS(templates.FS, "reset-pw.gohtml", "tailwind.gohtml"))
+
+	galleriesC := controllers.Galleries{
+		GalleryService: galleryService,
+	}
+	galleriesC.Templates.New = views.Must(views.ParseFS(templates.FS, "galleries/new.gohtml", "tailwind.gohtml"))
+	galleriesC.Templates.Edit = views.Must(views.ParseFS(templates.FS, "galleries/edit.gohtml", "tailwind.gohtml"))
 
 	r := chi.NewRouter()
 	r.Use(csrfMiddleware)
@@ -147,6 +156,16 @@ func main() {
 	r.Post("/signout", usersC.ProcessSignout)
 	r.Post("/forgot-pw", usersC.ProcessForgotPassword)
 	r.Post("/reset-pw", usersC.ProcessResetPassword)
+
+	// if not done this way csrf token will throws error
+	r.Route("/galleries", func(r chi.Router) {
+		r.Group(func(r chi.Router) {
+			r.Use(umw.RequireUser)
+			r.Get("/new", galleriesC.New)
+			r.Get("/{id}/edit", galleriesC.Edit)
+			r.Post("/", galleriesC.Create)
+		})
+	})
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Page not found", http.StatusNotFound)

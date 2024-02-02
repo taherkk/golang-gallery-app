@@ -45,7 +45,7 @@ func (u Users) Create(w http.ResponseWriter, r *http.Request) {
 	user, err := u.UserService.Create(data.Email, data.Password)
 	if err != nil {
 		// log the information
-		if errors.Is(err, models.ErremailTaken) {
+		if errors.Is(err, models.ErrEmailToken) {
 			err = errors.Public(err, "That email address is already associated with an account")
 		}
 		u.Templates.New.Execute(w, r, data, err)

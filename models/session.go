@@ -29,13 +29,13 @@ type SessionService struct {
 	BytesPerToken int
 }
 
-func (ss *SessionService) hash(token string) string {
+func (service *SessionService) hash(token string) string {
 	tokenHash := sha256.Sum256([]byte(token))
 	return base64.URLEncoding.EncodeToString(tokenHash[:])
 }
 
-func (ss *SessionService) Create(userID uint) (*Session, error) {
-	bytesPerToken := ss.BytesPerToken
+func (service *SessionService) Create(userID uint) (*Session, error) {
+	bytesPerToken := service.BytesPerToken
 	if bytesPerToken < MinSessionTokenBytes {
 		bytesPerToken = MinSessionTokenBytes
 	}
@@ -45,7 +45,7 @@ func (ss *SessionService) Create(userID uint) (*Session, error) {
 		return nil, fmt.Errorf("session.create: %w", err)
 	}
 
-	tokenHash := ss.hash(token)
+	tokenHash := service.hash(token)
 
 	session := Session{
 		UserID:    userID,
@@ -53,7 +53,7 @@ func (ss *SessionService) Create(userID uint) (*Session, error) {
 		TokenHash: tokenHash,
 	}
 
-	row := ss.DB.QueryRow(`
+	row := service.DB.QueryRow(`
 		INSERT INTO sessions (user_id, token_hash)
 		VALUES ($1, $2) ON CONFLICT (user_id) DO
 		UPDATE
@@ -71,13 +71,13 @@ func (ss *SessionService) Create(userID uint) (*Session, error) {
 	return &session, nil
 }
 
-func (ss *SessionService) User(token string) (*User, error) {
+func (service *SessionService) User(token string) (*User, error) {
 
 	// hash the session token
-	tokenHash := ss.hash(token)
+	tokenHash := service.hash(token)
 
 	// query that session with the hash
-	row := ss.DB.QueryRow(`
+	row := service.DB.QueryRow(`
 		SELECT users.id, users.email, users.password_hash
 		FROM sessions
 		JOIN users ON users.id = sessions.user_id
@@ -94,10 +94,10 @@ func (ss *SessionService) User(token string) (*User, error) {
 	return &user, nil
 }
 
-func (ss *SessionService) Delete(token string) error {
-	tokenHash := ss.hash(token)
+func (service *SessionService) Delete(token string) error {
+	tokenHash := service.hash(token)
 
-	_, err := ss.DB.Exec(`
+	_, err := service.DB.Exec(`
 		DELETE FROM sessions
 		WHERE token_hash=$1;
 	`, tokenHash)
