@@ -132,6 +132,8 @@ func main() {
 	}
 	galleriesC.Templates.New = views.Must(views.ParseFS(templates.FS, "galleries/new.gohtml", "tailwind.gohtml"))
 	galleriesC.Templates.Edit = views.Must(views.ParseFS(templates.FS, "galleries/edit.gohtml", "tailwind.gohtml"))
+	galleriesC.Templates.Index = views.Must(views.ParseFS(templates.FS, "galleries/index.gohtml", "tailwind.gohtml"))
+	galleriesC.Templates.Show = views.Must(views.ParseFS(templates.FS, "galleries/show.gohtml", "tailwind.gohtml"))
 
 	r := chi.NewRouter()
 	r.Use(csrfMiddleware)
@@ -145,7 +147,7 @@ func main() {
 	r.Get("/signin", usersC.SignIn)
 	r.Get("/forgot-pw", usersC.ForgotPassword)
 	r.Get("/reset-pw", usersC.ResetPassword)
-	r.Route("/user/me", func(r chi.Router) {
+	r.Route("/users/me", func(r chi.Router) {
 		r.Use(umw.RequireUser)
 		r.Get("/", usersC.CurrentUser)
 	})
@@ -159,11 +161,15 @@ func main() {
 
 	// if not done this way csrf token will throws error
 	r.Route("/galleries", func(r chi.Router) {
+		r.Get("/{id}", galleriesC.Show)
 		r.Group(func(r chi.Router) {
 			r.Use(umw.RequireUser)
+			r.Get("/", galleriesC.Index)
 			r.Get("/new", galleriesC.New)
 			r.Get("/{id}/edit", galleriesC.Edit)
 			r.Post("/", galleriesC.Create)
+			r.Post("/{id}", galleriesC.Update)
+			r.Post("/{id}/delete", galleriesC.Delete)
 		})
 	})
 

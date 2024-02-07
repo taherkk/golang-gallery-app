@@ -1,0 +1,37 @@
+{{template "header" .}}
+<div class="p-8 w-full">
+  <div class="relative">
+  <h1 class="pt-4 pb-8 text-3xl font-bold text-gray-800 inline-block">
+    My Galleries
+  </h1>
+  <div class="pt-6 pb-8 absolute top-0 right-0 inline-block">
+    <a href="/galleries/new" class="py-2 px-8 bg-indigo-600 text-white rounded font-bold text-lg">Create New</a>
+  </div>
+</div>
+  <table class="w-full table-fixed">
+    <thead>
+      <tr>
+        <td class="p-2 text-left w-24">ID</td>
+        <th class="p-2 text-left">Ttile</th>
+        <th class="p-2 text-left w-96">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Galleries}}
+        <tr class="border">
+          <td class="p-2 border">{{.ID}}</td>
+          <td class="p-2 border">{{.Title}}</td>
+          <td class="p-2 border flex space-x-2">
+            <a class="py-1 px-2 bg-blue-100 hover:bo-blue-200 border border-blue-600 text-xs text-blue-600 rounded" href="/galleries/{{.ID}}">View</a>
+            <a class="py-1 px-2 bg-yellow-100 hover:bo-yellow-200 border border-yellow-600 text-xs text-yellow-600 rounded" href="/galleries/{{.ID}}/edit">Edit</a>
+            <form action="/galleries/{{.ID}}/delete" method="post" onsubmit="return confirm('Do you really wnat to delelte this gallery?');">
+              {{csrfField}}
+              <button type="submit" class="py-1 px-2 bg-red-100 hover:bo-red-200 border border-red-600 text-xs text-red-600 rounded" href="/galleries/{{.ID}}/delete">Delete</a>
+            </form>
+          </td>
+        </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{template "footer" .}}
